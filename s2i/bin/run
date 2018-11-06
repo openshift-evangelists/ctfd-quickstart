@@ -1,0 +1,51 @@
+#!/bin/bash
+
+#set -eo pipefail
+
+# Check that the database is available
+
+function database_ready() {
+    python -c "import os, sys
+from sqlalchemy_utils.functions import database_exists
+database_exists(os.getenv('DATABASE_URL')) or sys.exit(1)" > /dev/null 2>&1
+}
+
+if [ -n "$DATABASE_URL" ]; then
+    database=`echo $DATABASE_URL | awk -F[@//] '{print $4}'`
+    echo "Waiting for $database to be ready"
+    while ! database_ready; do
+        echo 'sleeping 1 sec...'
+        sleep 2
+    done
+    echo "$database is ready"
+    sleep 1;
+fi
+
+# Initialize the database if required.
+
+python manage.py db upgrade
+
+# Host CTFd via mod_wsgi-express.
+
+echo "Starting CTFd"
+
+PORT=${PORT:-8080}
+
+ARGS=""
+
+ARGS="$ARGS --log-to-terminal"
+ARGS="$ARGS --port $PORT"
+
+if [ x"$MOD_WSGI_PROCESSES" != x"" ]; then
+    ARGS="$ARGS --processes $MOD_WSGI_PROCESSES"
+fi
+
+if [ x"$MOD_WSGI_THREADS" != x"" ]; then
+    ARGS="$ARGS --threads $MOD_WSGI_THREADS"
+fi
+
+if [ x"$MOD_WSGI_MAX_CLIENTS" != x"" ]; then
+    ARGS="$ARGS --max-clients $MOD_WSGI_MAX_CLIENTS"
+fi
+
+exec mod_wsgi-express start-server $ARGS --callable_object app wsgi.py

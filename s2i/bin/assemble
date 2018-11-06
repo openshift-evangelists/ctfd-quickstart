@@ -1,0 +1,31 @@
+#!/bin/bash
+
+set -x
+
+set -eo pipefail
+
+# Move source files to src directory.
+
+mv /tmp/src/* .
+
+# Update pip and packaging tools to latest.
+
+pip install -U pip setuptools wheel
+
+# Install Python packages.
+
+pip install -r requirements.txt
+
+for d in CTFd/plugins/*; do
+    if [ -f "$d/requirements.txt" ]; then
+        pip install -r $d/requirements.txt
+    fi
+done
+
+# Install mod_wsgi-express.
+
+pip install -U mod_wsgi
+
+# Fixup file system permisions.
+
+fix-permissions /opt/app-root
