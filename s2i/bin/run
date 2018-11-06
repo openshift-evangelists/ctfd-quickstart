@@ -48,4 +48,4 @@ if [ x"$MOD_WSGI_MAX_CLIENTS" != x"" ]; then
     ARGS="$ARGS --max-clients $MOD_WSGI_MAX_CLIENTS"
 fi
 
-exec mod_wsgi-express start-server $ARGS --callable_object app wsgi.py
+exec mod_wsgi-express start-server $ARGS --callable-object app wsgi.py
