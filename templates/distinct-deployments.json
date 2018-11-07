@@ -135,7 +135,7 @@
             "kind": "PersistentVolumeClaim",
             "apiVersion": "v1",
             "metadata": {
-                "name": "${APPLICATION_NAME}-uploads",
+                "name": "${APPLICATION_NAME}-data",
                 "labels": {
                     "app": "${APPLICATION_NAME}"
                 }
