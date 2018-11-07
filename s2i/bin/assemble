@@ -26,6 +26,13 @@ done
 
 pip install -U mod_wsgi
 
-# Fixup file system permisions.
+# Fixup file system permissions. Normally for an S2I build we would make
+# files/directories under /opt/app-root writable by group so that the
+# application can write can do updates still when run as arbitrary user
+# ID. For CTFd we want to avoid the possibility that someone could break
+# into the application and modify source code and then trigger a restart
+# of the web server. We thus remove write access to group and others.
+# This can result in a new layer being created in the container image,
+# but removing write access is worth the extra image size.
 
-fix-permissions /opt/app-root
+chmod -R og-w /opt/app-root
