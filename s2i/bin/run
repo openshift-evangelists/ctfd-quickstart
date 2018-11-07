@@ -34,6 +34,7 @@ PORT=${PORT:-8080}
 ARGS=""
 
 ARGS="$ARGS --log-to-terminal"
+ARGS="$ARGS --access-log"
 ARGS="$ARGS --port $PORT"
 
 if [ x"$MOD_WSGI_PROCESSES" != x"" ]; then
