@@ -49,4 +49,8 @@ if [ x"$MOD_WSGI_MAX_CLIENTS" != x"" ]; then
     ARGS="$ARGS --max-clients $MOD_WSGI_MAX_CLIENTS"
 fi
 
+if [ x"$MOD_WSGI_RESTART_INTERVAL" != x"" ]; then
+    ARGS="$ARGS --restart-interval $MOD_WSGI_RESTART_INTERVAL"
+fi
+
 exec mod_wsgi-express start-server $ARGS --callable-object app wsgi.py
