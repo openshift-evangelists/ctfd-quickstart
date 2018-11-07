@@ -58,7 +58,19 @@ oc set env dc/ctfd MOD_WSGI_RESTART_INTERVAL=60
 
 The container in which CTFd runs has a memory limit of 256Mi. If you need to scale up the application by increasing the number of worker processes, check that there is still sufficient memory and adjust the memory limit for the ``ctfd`` container if necessary.
 
-Application Security
+Deleting the deployment
+-----------------------
+
+To delete the deployed CTFd application when no longer required, along with all the
+configuration and data in persistent volumes, run:
+
+```
+oc delete all,pvc,sa --selector app=ctfd
+```
+
+The value of the ``app`` label should be the application name you used.
+
+Application security
 --------------------
 
 The CTFd application is used for tracking progress in contests where the aim of the contest can be to hack into special prepared applications exhibiting some security vulnerability. As participants are potentially going to be well versed in application security and hacking, it is  important also that CTFd be secure.
