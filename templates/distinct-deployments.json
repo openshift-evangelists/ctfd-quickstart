@@ -132,6 +132,17 @@
             }
         },
         {
+	    "kind": "ServiceAccount",
+	    "apiVersion": "v1",
+	    "metadata": {
+		"name": "${APPLICATION_NAME}-app",
+		"labels": {
+		    "app": "${APPLICATION_NAME}"
+		}
+	    },
+            "automountServiceAccountToken": false
+	},
+        {
             "kind": "PersistentVolumeClaim",
             "apiVersion": "v1",
             "metadata": {
@@ -195,6 +206,8 @@
                         }
                     },
                     "spec": {
+                        "serviceAccountName": "${APPLICATION_NAME}-app",
+                        "automountServiceAccountToken": false,
                         "containers": [
                             {
                                 "name": "ctfd",
@@ -372,6 +385,8 @@
                         }
                     },
                     "spec": {
+                        "serviceAccountName": "${APPLICATION_NAME}-app",
+                        "automountServiceAccountToken": false,
                         "containers": [
                             {
                                 "name": "redis",
@@ -502,6 +517,8 @@
                         }
                     },
                     "spec": {
+                        "serviceAccountName": "${APPLICATION_NAME}-app",
+                        "automountServiceAccountToken": false,
                         "containers": [
                             {
                                 "name": "mysql",
