@@ -1,0 +1,602 @@
+{
+    "kind": "Template",
+    "apiVersion": "v1",
+    "metadata": {
+        "name": "ctfd-distinct-deployments"
+    },
+    "parameters": [
+        {
+            "name": "APPLICATION_NAME",
+            "value": "ctfd",
+            "required": true
+        },
+        {
+            "name": "GIT_REPOSITORY_URL",
+            "value": "https://github.com/CTFd/CTFd",
+            "required": true
+        },
+        {
+            "name": "GIT_REFERENCE",
+            "value": "1.2.0",
+            "required": true
+        },
+        {
+            "name": "REDIS_PASSWORD",
+            "from": "[a-zA-Z0-9]{16}",
+            "generate": "expression",
+            "required": true
+        },
+        {
+            "name": "MYSQL_USER",
+            "from": "user[A-Z0-9]{3}",
+            "generate": "expression",
+            "required": true
+        },
+        {
+            "name": "MYSQL_PASSWORD",
+            "from": "[a-zA-Z0-9]{16}",
+            "generate": "expression",
+            "required": true
+        },
+        {
+            "name": "MYSQL_ROOT_PASSWORD",
+            "from": "[a-zA-Z0-9]{16}",
+            "generate": "expression",
+            "required": true
+        },
+        {
+            "name": "MYSQL_DATABASE",
+            "required": true,
+            "value": "ctfd"
+        },
+        {
+            "name": "SECRET_KEY",
+            "generate": "expression",
+            "from": "[a-zA-Z0-9]{48}",
+            "required": true
+        },
+        {
+            "name": "UPLOADS_VOLUME_SIZE",
+            "value": "1Gi",
+            "required": true
+        },
+        {
+            "name": "MYSQL_VOLUME_SIZE",
+            "value": "1Gi",
+            "required": true
+        },
+        {
+            "name": "REDIS_VOLUME_SIZE",
+            "value": "1Gi",
+            "required": true
+        }
+    ],
+    "objects": [
+        {
+            "kind": "ImageStream",
+            "apiVersion": "v1",
+            "metadata": {
+                "name": "${APPLICATION_NAME}",
+                "labels": {
+                    "app": "${APPLICATION_NAME}"
+                }
+            },
+            "spec": {
+                "lookupPolicy": {
+                    "local": false
+                }
+            }
+        },
+        {
+            "kind": "BuildConfig",
+            "apiVersion": "v1",
+            "metadata": {
+                "name": "${APPLICATION_NAME}",
+                "labels": {
+                    "app": "${APPLICATION_NAME}"
+                }
+            },
+            "spec": {
+                "triggers": [
+                    {
+                        "type": "ConfigChange"
+                    },
+                    {
+                        "type": "ImageChange"
+                    }
+                ],
+                "source": {
+                    "type": "Git",
+                    "git": {
+                        "uri": "${GIT_REPOSITORY_URL}",
+                        "ref": "${GIT_REFERENCE}"
+                    }
+                },
+                "strategy": {
+                    "type": "Source",
+                    "sourceStrategy": {
+                        "from": {
+                            "kind": "ImageStreamTag",
+                            "namespace": "openshift",
+                            "name": "python:3.6"
+                        },
+                        "scripts": "https://raw.githubusercontent.com/openshift-evangelists/ctfd-quickstart/master/s2i/bin"
+                    }
+                },
+                "output": {
+                    "to": {
+                        "kind": "ImageStreamTag",
+                        "name": "ctfd:latest"
+                    }
+                }
+            }
+        },
+        {
+            "kind": "PersistentVolumeClaim",
+            "apiVersion": "v1",
+            "metadata": {
+                "name": "${APPLICATION_NAME}-uploads",
+                "labels": {
+                    "app": "${APPLICATION_NAME}"
+                }
+            },
+            "spec": {
+                "accessModes": [
+                    "ReadWriteOnce"
+                ],
+                "resources": {
+                    "requests": {
+                        "storage": "${UPLOADS_VOLUME_SIZE}"
+                    }
+                }
+            }
+        },
+        {
+            "kind": "DeploymentConfig",
+            "apiVersion": "v1",
+            "metadata": {
+                "name": "${APPLICATION_NAME}",
+                "labels": {
+                    "app": "${APPLICATION_NAME}"
+                }
+            },
+            "spec": {
+                "strategy": {
+                    "type": "Recreate"
+                },
+                "triggers": [
+                    {
+                        "type": "ConfigChange"
+                    },
+                    {
+                        "type": "ImageChange",
+                        "imageChangeParams": {
+                            "automatic": true,
+                            "containerNames": [
+                                "ctfd"
+                            ],
+                            "from": {
+                                "kind": "ImageStreamTag",
+                                "name": "ctfd:latest"
+                            }
+                        }
+                    }
+                ],
+                "replicas": 1,
+                "selector": {
+                    "app": "${APPLICATION_NAME}",
+                    "deploymentconfig": "${APPLICATION_NAME}"
+                },
+                "template": {
+                    "metadata": {
+                        "labels": {
+                            "app": "${APPLICATION_NAME}",
+                            "deploymentconfig": "${APPLICATION_NAME}"
+                        }
+                    },
+                    "spec": {
+                        "containers": [
+                            {
+                                "name": "ctfd",
+                                "ports": [
+                                    {
+                                        "containerPort": 8080,
+                                        "protocol": "TCP"
+                                    }
+                                ],
+				"resources": {
+				    "limits": {
+					"memory": "256Mi"
+				    }
+				},
+                                "env": [
+                                    {
+                                        "name": "SECRET_KEY",
+                                        "value": "${SECRET_KEY}"
+                                    },
+                                    {
+                                        "name": "REDIS_URL",
+                                        "value": "redis://:${REDIS_PASSWORD}@${APPLICATION_NAME}-redis:6379"
+                                    },
+                                    {
+                                        "name": "DATABASE_URL",
+                                        "value": "mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@${APPLICATION_NAME}-mysql/ctfd"
+                                    },
+                                    {
+                                        "name": "UPLOAD_FOLDER",
+                                        "value": "/var/uploads"
+                                    },
+                                    {
+                                        "name": "LOG_FOLDER",
+                                        "value": "/var/logs/CTFd"
+                                    }
+                                ],
+                                "volumeMounts": [
+                                    {
+                                        "name": "data",
+                                        "mountPath": "/var/uploads",
+                                        "subPath": "uploads"
+                                    },
+                                    {
+                                        "name": "data",
+                                        "mountPath": "/var/logs/CTFd",
+                                        "subPath": "logs"
+                                    }
+                                ]
+                            }
+                        ],
+                        "volumes": [
+                            {
+                                "name": "data",
+                                "persistentVolumeClaim": {
+                                    "claimName": "${APPLICATION_NAME}-data"
+                                }
+                            }
+                        ]
+                    }
+                }
+            }
+        },
+        {
+            "kind": "Service",
+            "apiVersion": "v1",
+            "metadata": {
+                "name": "${APPLICATION_NAME}",
+                "labels": {
+                    "app": "${APPLICATION_NAME}"
+                }
+            },
+            "spec": {
+                "ports": [
+                    {
+                        "name": "8080-tcp",
+                        "protocol": "TCP",
+                        "port": 8080,
+                        "targetPort": 8080
+                    }
+                ],
+                "selector": {
+                    "app": "${APPLICATION_NAME}",
+                    "deploymentconfig": "${APPLICATION_NAME}"
+                },
+                "type": "ClusterIP"
+            }
+        },
+        {
+            "kind": "Route",
+            "apiVersion": "v1",
+            "metadata": {
+                "name": "${APPLICATION_NAME}",
+                "labels": {
+                    "app": "${APPLICATION_NAME}"
+                }
+            },
+            "spec": {
+                "host": "",
+                "to": {
+                    "kind": "Service",
+                    "name": "${APPLICATION_NAME}",
+                    "weight": 100
+                },
+                "port": {
+                    "targetPort": "8080-tcp"
+                },
+                "tls": {
+                    "termination": "edge",
+                    "insecureEdgeTerminationPolicy": "Redirect"
+                }
+            }
+        },
+        {
+            "kind": "PersistentVolumeClaim",
+            "apiVersion": "v1",
+            "metadata": {
+                "name": "${APPLICATION_NAME}-redis",
+                "labels": {
+                    "app": "${APPLICATION_NAME}"
+                }
+            },
+            "spec": {
+                "accessModes": [
+                    "ReadWriteOnce"
+                ],
+                "resources": {
+                    "requests": {
+                        "storage": "${REDIS_VOLUME_SIZE}"
+                    }
+                }
+            }
+        },
+        {
+            "kind": "DeploymentConfig",
+            "apiVersion": "v1",
+            "metadata": {
+                "name": "${APPLICATION_NAME}-redis",
+                "labels": {
+                    "app": "${APPLICATION_NAME}"
+                }
+            },
+            "spec": {
+                "strategy": {
+                    "type": "Recreate"
+                },
+                "triggers": [
+                    {
+                        "type": "ConfigChange"
+                    },
+                    {
+                        "type": "ImageChange",
+                        "imageChangeParams": {
+                            "automatic": true,
+                            "containerNames": [
+                                "redis"
+                            ],
+                            "from": {
+                                "kind": "ImageStreamTag",
+                                "namespace": "openshift",
+                                "name": "redis:3.2"
+                            }
+                        }
+                    }
+                ],
+                "replicas": 1,
+                "selector": {
+                    "app": "${APPLICATION_NAME}",
+                    "deploymentconfig": "${APPLICATION_NAME}-redis"
+                },
+                "template": {
+                    "metadata": {
+                        "labels": {
+                            "app": "${APPLICATION_NAME}",
+                            "deploymentconfig": "${APPLICATION_NAME}-redis"
+                        }
+                    },
+                    "spec": {
+                        "containers": [
+                            {
+                                "name": "redis",
+                                "ports": [
+                                    {
+                                        "containerPort": 6379,
+                                        "protocol": "TCP"
+                                    }
+                                ],
+				"resources": {
+				    "limits": {
+					"memory": "256Mi"
+				    }
+				},
+                                "env": [
+                                    {
+                                        "name": "REDIS_PASSWORD",
+                                        "value": "${REDIS_PASSWORD}"
+                                    }
+                                ],
+                                "volumeMounts": [
+                                    {
+                                        "mountPath": "/var/lib/redis/data",
+                                        "name": "data"
+                                    }
+                                ]
+                            }
+                        ],
+                        "volumes": [
+                            {
+                                "name": "data",
+                                "persistentVolumeClaim": {
+                                    "claimName": "${APPLICATION_NAME}-redis"
+                                }
+                            }
+                        ]
+                    }
+                }
+            }
+        },
+        {
+            "kind": "Service",
+            "apiVersion": "v1",
+            "metadata": {
+                "name": "${APPLICATION_NAME}-redis",
+                "labels": {
+                    "app": "${APPLICATION_NAME}"
+                }
+            },
+            "spec": {
+                "ports": [
+                    {
+                        "name": "6379-tcp",
+                        "protocol": "TCP",
+                        "port": 6379,
+                        "targetPort": 6379
+                    }
+                ],
+                "selector": {
+                    "app": "${APPLICATION_NAME}",
+                    "deploymentconfig": "${APPLICATION_NAME}-redis"
+                },
+                "type": "ClusterIP"
+            }
+        },
+        {
+            "kind": "PersistentVolumeClaim",
+            "apiVersion": "v1",
+            "metadata": {
+                "name": "${APPLICATION_NAME}-mysql",
+                "labels": {
+                    "app": "${APPLICATION_NAME}"
+                }
+            },
+            "spec": {
+                "accessModes": [
+                    "ReadWriteOnce"
+                ],
+                "resources": {
+                    "requests": {
+                        "storage": "${MYSQL_VOLUME_SIZE}"
+                    }
+                }
+            }
+        },
+        {
+            "kind": "DeploymentConfig",
+            "apiVersion": "v1",
+            "metadata": {
+                "name": "${APPLICATION_NAME}-mysql",
+                "labels": {
+                    "app": "${APPLICATION_NAME}"
+                }
+            },
+            "spec": {
+                "strategy": {
+                    "type": "Recreate"
+                },
+                "triggers": [
+                    {
+                        "type": "ConfigChange"
+                    },
+                    {
+                        "type": "ImageChange",
+                        "imageChangeParams": {
+                            "automatic": true,
+                            "containerNames": [
+                                "mysql"
+                            ],
+                            "from": {
+                                "kind": "ImageStreamTag",
+                                "namespace": "openshift",
+                                "name": "mysql:5.7"
+                            }
+                        }
+                    }
+                ],
+                "replicas": 1,
+                "selector": {
+                    "app": "${APPLICATION_NAME}",
+                    "deploymentconfig": "${APPLICATION_NAME}-mysql"
+                },
+                "template": {
+                    "metadata": {
+                        "labels": {
+                            "app": "${APPLICATION_NAME}",
+                            "deploymentconfig": "${APPLICATION_NAME}-mysql"
+                        }
+                    },
+                    "spec": {
+                        "containers": [
+                            {
+                                "name": "mysql",
+                                "ports": [
+                                    {
+                                        "containerPort": 3306,
+                                        "protocol": "TCP"
+                                    }
+                                ],
+				"resources": {
+				    "limits": {
+					"memory": "512Mi"
+				    }
+				},
+                                "env": [
+                                    {
+                                        "name": "MYSQL_USER",
+                                        "value": "${MYSQL_USER}"
+                                    },
+                                    {
+                                        "name": "MYSQL_PASSWORD",
+                                        "value": "${MYSQL_PASSWORD}"
+                                    },
+                                    {
+                                        "name": "MYSQL_ROOT_PASSWORD",
+                                        "value": "${MYSQL_ROOT_PASSWORD}"
+                                    },
+                                    {
+                                        "name": "MYSQL_DATABASE",
+                                        "value": "${MYSQL_DATABASE}"
+                                    }
+                                ],
+                                "readinessProbe": {
+                                    "exec": {
+                                        "command": [
+                                            "/bin/sh",
+                                            "-i",
+                                            "-c",
+                                            "MYSQL_PWD=\"$MYSQL_PASSWORD\" mysql -h 127.0.0.1 -u $MYSQL_USER -D $MYSQL_DATABASE -e 'SELECT 1'"
+                                        ]
+                                    },
+                                    "initialDelaySeconds": 5,
+                                    "timeoutSeconds": 1
+                                },
+                               "livenessProbe": {
+                                    "initialDelaySeconds": 30,
+                                    "tcpSocket": {
+                                        "port": 3306
+                                    },
+                                    "timeoutSeconds": 1
+                                },
+                                "volumeMounts": [
+                                    {
+                                        "mountPath": "/var/lib/mysql/data",
+                                        "name": "data"
+                                    }
+                                ]
+                            }
+                        ],
+                        "volumes": [
+                            {
+                                "name": "data",
+                                "persistentVolumeClaim": {
+                                    "claimName": "${APPLICATION_NAME}-mysql"
+                                }
+                            }
+                        ]
+                    }
+                }
+            }
+        },
+        {
+            "kind": "Service",
+            "apiVersion": "v1",
+            "metadata": {
+                "name": "${APPLICATION_NAME}-mysql",
+                "labels": {
+                    "app": "${APPLICATION_NAME}"
+                }
+            },
+            "spec": {
+                "ports": [
+                    {
+                        "name": "3306-tcp",
+                        "protocol": "TCP",
+                        "port": 3306,
+                        "targetPort": 3306
+                    }
+                ],
+                "selector": {
+                    "app": "${APPLICATION_NAME}",
+                    "deploymentconfig": "${APPLICATION_NAME}-mysql"
+                },
+                "type": "ClusterIP"
+            }
+        }
+    ]
+}
