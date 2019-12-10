@@ -37,7 +37,12 @@ The default name for the deployed application is ``ctfd``. If you want to overri
 oc new-app https://raw.githubusercontent.com/openshift-evangelists/ctfd-quickstart/master/templates/all-in-one-deployment.json --param APPLICATION_NAME=ctfd
 ```
 
-The Git repository URL and Git reference can be overridden using the ``GIT_REPOSITORY_URL`` and ``GIT_REFERENCE`` template parameters.
+The Git repository URL and Git reference can be overridden using the ``GIT_REPOSITORY_URL`` and ``GIT_REFERENCE`` template parameters. Other parameters can also be customized by passing either ``--param`` or ``--param-file`` to ``oc new-app``. Example:
+
+```
+echo -e "MYSQL_VOLUME_SIZE=2Gi\nPYTHON_VERSION=2.7" > params
+oc new-app --file=distinct-deployments.json --param-file=params
+```
 
 Scaling up the application
 --------------------------

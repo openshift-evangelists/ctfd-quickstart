@@ -21,6 +21,16 @@
             "required": true
         },
         {
+            "name": "MOD_WSGI_PROCESSES",
+            "value": "1",
+            "required": true
+        },
+        {
+            "name": "MOD_WSGI_THREADS",
+            "value": "5",
+            "required": true
+        },
+        {
             "name": "REDIS_PASSWORD",
             "from": "[a-zA-Z0-9]{16}",
             "generate": "expression",
@@ -69,6 +79,31 @@
             "name": "REDIS_VOLUME_SIZE",
             "value": "1Gi",
             "required": true
+        },
+        {
+            "name": "BUILD_POD_MEMORY_LIMIT",
+            "value": "1Gi",
+            "required": true
+        },
+        {
+            "name": "CTFD_MEMORY_LIMIT",
+            "value": "256Mi",
+            "required": true
+        },
+        {
+            "name": "REDIS_MEMORY_LIMIT",
+            "value": "256Mi",
+            "required": true
+        },
+        {
+            "name": "MYSQL_MEMORY_LIMIT",
+            "value": "512Mi",
+            "required": true
+        },
+        {
+            "name": "PYTHON_VERSION",
+            "value": "3.6",
+            "required": true
         }
     ],
     "objects": [
@@ -97,6 +132,11 @@
                 }
             },
             "spec": {
+                "resources": {
+                    "limits": {
+                        "memory": "${BUILD_POD_MEMORY_LIMIT}"
+                    }
+                },
                 "triggers": [
                     {
                         "type": "ConfigChange"
@@ -118,7 +158,7 @@
                         "from": {
                             "kind": "ImageStreamTag",
                             "namespace": "openshift",
-                            "name": "python:3.6"
+                            "name": "python:${PYTHON_VERSION}"
                         },
                         "scripts": "https://raw.githubusercontent.com/openshift-evangelists/ctfd-quickstart/master/s2i/bin"
                     }
@@ -217,11 +257,11 @@
                                         "protocol": "TCP"
                                     }
                                 ],
-				"resources": {
-				    "limits": {
-					"memory": "256Mi"
-				    }
-				},
+                                "resources": {
+                                    "limits": {
+                                        "memory": "${CTFD_MEMORY_LIMIT}"
+                                    }
+                                },
                                 "env": [
                                     {
                                         "name": "SECRET_KEY",
@@ -242,6 +282,14 @@
                                     {
                                         "name": "LOG_FOLDER",
                                         "value": "/var/logs/CTFd"
+                                    },
+                                    {
+                                        "name": "MOD_WSGI_PROCESSES",
+                                        "value": "${MOD_WSGI_PROCESSES}"
+                                    },
+                                    {
+                                        "name": "MOD_WSGI_THREADS",
+                                        "value": "${MOD_WSGI_THREADS}"
                                     }
                                 ],
                                 "volumeMounts": [
@@ -396,11 +444,11 @@
                                         "protocol": "TCP"
                                     }
                                 ],
-				"resources": {
-				    "limits": {
-					"memory": "256Mi"
-				    }
-				},
+                                "resources": {
+                                    "limits": {
+                                        "memory": "${REDIS_MEMORY_LIMIT}"
+                                    }
+                                },
                                 "env": [
                                     {
                                         "name": "REDIS_PASSWORD",
@@ -528,11 +576,11 @@
                                         "protocol": "TCP"
                                     }
                                 ],
-				"resources": {
-				    "limits": {
-					"memory": "512Mi"
-				    }
-				},
+                                "resources": {
+                                    "limits": {
+                                        "memory": "${MYSQL_MEMORY_LIMIT}"
+                                    }
+                                },
                                 "env": [
                                     {
                                         "name": "MYSQL_USER",
